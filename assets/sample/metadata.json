@@ -1,0 +1,12 @@
+{
+  "pack_id": "emergency_demo_v2",
+  "name": "Emergency Full SOP Pack",
+  "version": "2.0.0",
+  "description": "Emergency first aid SOPs including WHO & Red Cross trauma manuals.",
+  "created_at": "2026-09-10",
+  "embedding_model": "all-MiniLM-L6-v2",
+  "embedding_dim": 384,
+  "doc_count": 8,
+  "chunk_count": 989,
+  "disclaimer": "Demonstration dataset only. Not a substitute for professional medical advice."
+}

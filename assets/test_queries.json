@@ -1,0 +1,14 @@
+[
+    {
+        "query": "heat stroke",
+        "expected": "heat stroke"
+    },
+    {
+        "query": "fracture",
+        "expected": "fracture"
+    },
+    {
+        "query": "snake bite",
+        "expected": "snake bite"
+    }
+]

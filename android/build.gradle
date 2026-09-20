@@ -1,0 +1,29 @@
+allprojects {
+    repositories {
+        google()
+        maven { url "https://maven-central.storage-download.googleapis.com/maven2/" }
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+    plugins.withId("com.android.library") {
+        android {
+            ndkVersion = "28.2.13676358"
+        }
+    }
+    plugins.withId("com.android.application") {
+        android {
+            ndkVersion = "28.2.13676358"
+        }
+    }
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

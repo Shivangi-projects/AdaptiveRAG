@@ -1,0 +1,6 @@
+# Release Signing Keystore Configuration Example
+# Copy this file to key.properties and replace with your keystore credentials
+storePassword=your_keystore_password_here
+keyPassword=your_key_password_here
+keyAlias=edgerag_key
+storeFile=/path/to/your/upload-keystore.jks
