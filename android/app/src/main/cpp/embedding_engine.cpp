@@ -259,6 +259,15 @@ namespace edgerag
 
         if (raw_output)
         {
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "EMBED",
+                "RAW=%f %f %f %f %f",
+                raw_output[0],
+                raw_output[1],
+                raw_output[2],
+                raw_output[3],
+                raw_output[4]);
             mean_pooling_and_normalize(
                 raw_output,
                 attention_mask,

@@ -19,8 +19,18 @@ namespace edgerag
     {
         close();
         db_path_ = db_path;
-
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "OPENING DB PATH=%s",
+            db_path.c_str());
         int rc = sqlite3_open(db_path_.c_str(), &db_);
+
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "DB OPEN SUCCESS PATH=%s",
+            db_path_.c_str());
         if (rc != SQLITE_OK)
         {
             close();
@@ -159,41 +169,6 @@ namespace edgerag
                                       const float *embedding_data,
                                       int embedding_dim)
     {
-        __android_log_print(
-            ANDROID_LOG_ERROR,
-            "EDGERAG",
-            "INSERTING CHUNK doc=%ld",
-            doc_id);
-        if (embedding_data == nullptr)
-        {
-            __android_log_print(
-                ANDROID_LOG_ERROR,
-                "EDGERAG",
-                "embedding_data is NULL");
-        }
-        else
-        {
-            __android_log_print(
-                ANDROID_LOG_ERROR,
-                "EDGERAG",
-                "embedding_dim=%d",
-                embedding_dim);
-        }
-        for (int i = 0; i < 10; i++)
-        {
-            __android_log_print(
-                ANDROID_LOG_ERROR,
-                "EDGERAG",
-                "EMB[%d] = %f",
-                i,
-                embedding_data[i]);
-        }
-        printf("DOC=%lld\n", doc_id);
-
-        for (int i = 0; i < 5; i++)
-        {
-            printf("%f ", embedding_data[i]);
-        }
 
         printf("\n");
         if (!db_)
@@ -265,8 +240,6 @@ namespace edgerag
     std::vector<SearchResult> VectorStore::search(const float *query_vector, int embedding_dim, int top_k)
     {
 
-        printf("SEARCH CALLED\n");
-        printf("DB OPEN = %p\n", db_);
         std::vector<SearchResult> results;
         if (!db_ || query_vector == nullptr || embedding_dim <= 0 || top_k <= 0)
         {
@@ -280,11 +253,10 @@ namespace edgerag
         }
 
         queryNorm = sqrtf(queryNorm);
-
         __android_log_print(
             ANDROID_LOG_ERROR,
             "EDGERAG",
-            "QUERY_NORM=%f",
+            "QUERY NORM=%f",
             queryNorm);
 
         const char *sql =
@@ -304,14 +276,10 @@ namespace edgerag
             float score;
         };
         std::vector<Candidate> candidates;
-        __android_log_print(
-            ANDROID_LOG_ERROR,
-            "EDGERAG",
-            "ROW FOUND");
+
         while (sqlite3_step(stmt) == SQLITE_ROW)
         {
-            printf("CHUNK FOUND IN DB\n");
-            printf("ROW FOUND\n");
+
             int64_t chunk_id = sqlite3_column_int64(stmt, 0);
             int64_t doc_id = sqlite3_column_int64(stmt, 1);
             int32_t chunk_index = sqlite3_column_int(stmt, 2);
@@ -319,34 +287,38 @@ namespace edgerag
             const char *content = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 4));
             const void *blob = sqlite3_column_blob(stmt, 5);
             int blob_bytes = sqlite3_column_bytes(stmt, 5);
-            __android_log_print(
-                ANDROID_LOG_ERROR,
-                "EDGERAG",
-                "chunk=%lld blob_bytes=%d expected=%d",
-                sqlite3_column_int64(stmt, 0),
-                blob_bytes,
-                embedding_dim * (int)sizeof(float));
-            const char *filename = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 6));
-            printf("blob_bytes=%d\n", blob_bytes);
-            printf("expected=%zu\n", embedding_dim * sizeof(float));
-            if (blob_bytes > 0)
-            {
-                const float *v = static_cast<const float *>(blob);
 
-                printf("FIRST 5 VALUES: ");
-                for (int i = 0; i < 5; i++)
-                {
-                    printf("%f ", v[i]);
-                }
-                printf("\n");
+            const char *filename = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 6));
+            if (filename &&
+                std::string(filename).find("Heat") != std::string::npos)
+            {
+                __android_log_print(
+                    ANDROID_LOG_ERROR,
+                    "EDGERAG",
+                    "HEAT FILE FOUND chunk=%d",
+                    chunk_index);
             }
             printf(
-                "blob_bytes=%d expected=%d\n",
-                blob_bytes,
-                embedding_dim * (int)sizeof(float));
+                "DOC=%ld FILE=%s CHUNK=%d\n",
+                doc_id,
+                filename,
+                chunk_index);
+
             if (blob && blob_bytes == embedding_dim * static_cast<int>(sizeof(float)))
             {
                 const float *chunk_vec = static_cast<const float *>(blob);
+                if (chunk_id <= 10)
+                {
+                    __android_log_print(
+                        ANDROID_LOG_ERROR,
+                        "EDGERAG",
+                        "CHUNK=%ld EMB=%f %f %f %f",
+                        chunk_id,
+                        chunk_vec[0],
+                        chunk_vec[1],
+                        chunk_vec[2],
+                        chunk_vec[3]);
+                }
 
                 float queryNorm = 0.0f;
                 float chunkNorm = 0.0f;
@@ -357,17 +329,64 @@ namespace edgerag
                     chunkNorm += chunk_vec[i] * chunk_vec[i];
                 }
 
-                __android_log_print(
-                    ANDROID_LOG_ERROR,
-                    "EDGERAG",
-                    "queryNorm=%f chunkNorm=%f",
-                    sqrtf(queryNorm),
-                    sqrtf(chunkNorm));
+                chunkNorm = sqrtf(chunkNorm);
 
+                if (chunk_id < 5)
+                {
+                    __android_log_print(
+                        ANDROID_LOG_ERROR,
+                        "EDGERAG",
+                        "chunk=%ld norm=%f",
+                        chunk_id,
+                        chunkNorm);
+                }
                 float score = compute_cosine_similarity(
                     query_vector,
                     chunk_vec,
                     embedding_dim);
+                if (content &&
+                    (strstr(content, "AED") ||
+                     strstr(content, "Defibrillator") ||
+                     strstr(content, "defibrillator")))
+                {
+                    __android_log_print(
+                        ANDROID_LOG_ERROR,
+                        "EDGERAG",
+                        "AED CHUNK SCORE=%f text=%.100s",
+                        score,
+                        content);
+                }
+                if (score > 0.20f)
+                {
+                    __android_log_print(
+                        ANDROID_LOG_ERROR,
+                        "EDGERAG",
+                        "GOOD MATCH score=%f file=%s chunk=%d text=%.100s",
+                        score,
+                        filename ? filename : "",
+                        chunk_index,
+                        content ? content : "");
+                }
+                if (filename &&
+                    std::string(filename).find("Heat") != std::string::npos)
+                {
+                    __android_log_print(
+                        ANDROID_LOG_ERROR,
+                        "EDGERAG",
+                        "HEAT SCORE chunk=%d score=%f",
+                        chunk_index,
+                        score);
+                }
+                if (doc_id == 1)
+                {
+                    __android_log_print(
+                        ANDROID_LOG_ERROR,
+                        "EDGERAG",
+                        "HEATSTROKE chunk=%d score=%f text=%.50s",
+                        chunk_index,
+                        score,
+                        content);
+                }
 
                 __android_log_print(
                     ANDROID_LOG_ERROR,
@@ -388,17 +407,45 @@ namespace edgerag
                 candidates.push_back({sr, score});
             }
         }
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "TOTAL CANDIDATES=%d",
+            (int)candidates.size());
         sqlite3_finalize(stmt);
 
         // Sort candidates descending by score
         std::sort(candidates.begin(), candidates.end(), [](const Candidate &a, const Candidate &b)
                   { return a.score > b.score; });
 
-        int count = std::min(top_k, static_cast<int>(candidates.size()));
-        results.reserve(count);
-        for (int i = 0; i < count; ++i)
+        for (int i = 0; i < 10 && i < candidates.size(); i++)
         {
-            results.push_back(candidates[i].res);
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "EDGERAG",
+                "TOP[%d] score=%f file=%s chunk=%d text=%.120s",
+                i,
+                candidates[i].score,
+                candidates[i].res.filename.c_str(),
+                candidates[i].res.chunk_index,
+                candidates[i].res.content.c_str());
+        }
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "BEST SCORE=%f",
+            candidates.empty() ? -1.0f : candidates[0].score);
+        const float MIN_SCORE = 0.05f;
+
+        for (const auto &c : candidates)
+        {
+            if (c.score < MIN_SCORE)
+                continue;
+
+            results.push_back(c.res);
+
+            if ((int)results.size() >= top_k)
+                break;
         }
 
         return results;

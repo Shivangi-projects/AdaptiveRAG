@@ -7,8 +7,8 @@ class DecisionEngine {
 
       case QueryState.normal:
         return const RuntimeConfig(
-          topK: 3,
-          maxChunks: 2,
+          topK: 15,
+          maxChunks: 5,
           embeddingModel: "MiniLM",
           compressionLevel: 3,
         );

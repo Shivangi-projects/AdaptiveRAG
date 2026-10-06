@@ -12,6 +12,16 @@ class StateAnalyzer {
   "severe bleeding",
   "medical emergency",
   "cpr",
+
+  "poisoning",
+  "poisoned",
+  "overdose",
+  "snake bite",
+  "burn",
+  "electrocution",
+  "shock",
+  "seizure",
+  "stroke",
 ];
 
     const stressedWords = [

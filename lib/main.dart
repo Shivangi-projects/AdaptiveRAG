@@ -64,16 +64,24 @@ if (await dbFile.exists()) {
   await dbFile.delete();
 }
 
-bridge.initEngine(dbPath, onnxPath, vocabPath);
 
     // 4. Initialize Native C++ Core
-    bridge.initEngine(dbPath, onnxPath, vocabPath);
+    final ok = bridge.initEngine(
+  dbPath,
+  onnxPath,
+  vocabPath,
+);
+
+print("EDGE RAG INIT RESULT = $ok");
+print("DB PATH = $dbPath");
+print("ONNX PATH = $onnxPath");
+print("VOCAB PATH = $vocabPath");
 
     // 5. Load sample pack if knowledge base is empty
     await knowledgeService.refreshDocuments();
-    if (knowledgeService.documents.isEmpty) {
-      await knowledgeService.loadSamplePack();
-    }
+    // if (knowledgeService.documents.isEmpty) {
+    //   await knowledgeService.loadSamplePack();
+    // }
   } catch (e) {
     debugPrint('Bootstrap error: $e');
   }
@@ -87,12 +95,17 @@ void main() async {
   final settingsService = SettingsService();
   await settingsService.loadSettings();
 
-  final knowledgeService = KnowledgeService();
-  final modelService = ModelService();
-  final benchmarkService = BenchmarkService();
-  final ragService = RagService(modelService, benchmarkService);
+ final knowledgeService = KnowledgeService();
+final modelService = ModelService();
+final benchmarkService = BenchmarkService();
+final ragService = RagService(modelService, benchmarkService);
 
-  runApp(EdgeRagApp(
+await bootstrapEdgeRag(
+  nativeBridge,
+  knowledgeService,
+);
+
+runApp(EdgeRagApp(
     settingsService: settingsService,
     knowledgeService: knowledgeService,
     modelService: modelService,

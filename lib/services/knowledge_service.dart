@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../models/document.dart';
 import '../models/knowledge_pack.dart';
 import 'native_bridge.dart';
+import 'dart:math' as math;
 
 class KnowledgeService {
   final NativeBridge _bridge = NativeBridge();
@@ -21,8 +22,19 @@ class KnowledgeService {
   KnowledgePack? get activePack => _activePack;
 
   Future<void> refreshDocuments() async {
-    _documents = _bridge.listDocuments();
+  _documents = _bridge.listDocuments();
+
+  print("========== DOCUMENTS IN DB ==========");
+
+  for (final doc in _documents) {
+    
+    print(
+      "ID=${doc.id} FILE=${doc.filename} PAGES=${doc.pageCount}"
+    );
   }
+
+  print("TOTAL DOCS = ${_documents.length}");
+}
 
   // SHA-256 duplicate check
   String computeHash(List<int> bytes) {
@@ -92,17 +104,68 @@ class KnowledgeService {
     if (docId <= 0) return false;
 
     final chunks = chunkText(content, chunkSize, chunkOverlap);
+    print("FILE = $filename");
+print("TOTAL CHUNKS = ${chunks.length}");
+if (filename.contains("Heat_Stroke")) {
+  print("================================");
+  print("HEAT STROKE IMPORT STARTED");
+  print("CHUNKS CREATED = ${chunks.length}");
+  print("================================");
+}
+for (int i = 0; i < math.min(5, chunks.length) ;i++) {
+  print(chunks[i]);
+}
     for (int i = 0; i < chunks.length; i++) {
       final chunkText = chunks[i];
       final embedding = _bridge.embedText(chunkText);
+      if (chunkText.toLowerCase().contains("aed") ||
+    chunkText.toLowerCase().contains("defibrillator"))
+{
+  print("AED CHUNK FOUND");
+  print(chunkText);
+  print("EMBED LEN = ${embedding?.length}");
+}
+      if (i == 0 && embedding != null) {
+  print("FIRST CHUNK EMBEDDING:");
+  print(embedding.take(20).toList());
+}
+if (embedding != null) {
+  print("EMBED LEN = ${embedding.length}");
+
+  print(
+    "FIRST 10 = "
+    "${embedding.take(10).toList()}"
+  );
+}
+      if (filename.contains("Heat_Stroke")) {
+  print("========== HEAT STROKE CHUNK ==========");
+  print(chunkText.substring(
+      0,
+      chunkText.length > 100 ? 100 : chunkText.length));
+
+  print("EMBED NULL = ${embedding == null}");
+
+  if (embedding != null) {
+    print("EMBED LEN = ${embedding.length}");
+    print("EMBED SAMPLE = ${embedding.take(5).toList()}");
+  }
+  print(chunkText);
+  print("EMBED NULL = ${embedding == null}");
+  print("EMBED LEN = ${embedding?.length}");
+}
       if (i == 0 && embedding != null) {
   double norm = 0;
   for (final v in embedding) {
     norm += v * v;
   }
-  print("EMBED NORM = ${norm}");
+  print("EMBED NORM = ${math.sqrt(norm)}");
+  print("EMBED SIZE = ${embedding.length}");
 }
 print("ADDING CHUNK $i");
+if (chunkText.toLowerCase().contains("burn")) {
+  print("FOUND BURN CHUNK");
+  print(chunkText);
+}
       _bridge.addChunk(docId, i, 1, chunkText, embedding);
 
       if (onProgress != null) {
@@ -158,6 +221,13 @@ print("ADDING CHUNK $i");
 
       if (await File(targetDbPath).exists()) {
         _bridge.importPackDb(targetDbPath);
+        await refreshDocuments();
+
+print("AFTER IMPORT:");
+print("DOC COUNT = ${_documents.length}");
+
+// final stats = _bridge.getDbStats();
+// print("DB STATS AFTER IMPORT = $stats");
       }
 
       _activePack = KnowledgePack(

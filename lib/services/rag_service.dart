@@ -33,8 +33,52 @@ class RagService {
     
     try {
       print("EMBEDDER AVAILABLE = ${_bridge.isAvailable}");
+      print("ABOUT TO EMBED QUESTION");
+print(question);
       queryVector = _bridge.embedText(question);
-      print('DEBUG: queryVector length = ${queryVector?.length}');
+      print("========== QUERY VECTOR ==========");
+
+print("QUESTION = $question");
+
+print("LENGTH = ${queryVector?.length}");
+
+if (queryVector != null) {
+  print(queryVector.take(10).toList());
+
+  double norm = 0;
+
+  for (final v in queryVector) {
+    norm += v * v;
+  }
+
+  print("NORM = $norm");
+}
+
+print("==================================");
+
+print("EMBED RESULT NULL = ${queryVector == null}");
+      if (queryVector != null) {
+        print("================================");
+  print("QUESTION = $question");
+  print("EMBEDDING LENGTH = ${queryVector.length}");
+  print("VECTOR SAMPLE:");
+  print(queryVector.take(10).toList());
+  print("================================");
+  final norm = queryVector.fold(
+      0.0,
+      (sum, v) => sum + v * v);
+
+  print("VECTOR NORM = ${norm}");
+}
+
+if (queryVector != null) {
+  print("QUESTION = $question");
+  print("EMBEDDING LENGTH = ${queryVector.length}");
+  print("FIRST 20 VALUES:");
+  print(queryVector.take(20).toList());
+}
+      print("FIRST 20 VALUES:");
+print(queryVector?.take(20).toList());
     } catch (e) {
       print('DEBUG: Native embedding crashed: $e');
     }
@@ -61,7 +105,30 @@ class RagService {
 print("DB STATS = ${_bridge.getStats()}");
 print("QUESTION = $question");
 print("EMBEDDING DIM = ${queryVector.length}");
+final docs = _bridge.listDocuments();
+
+print("========== DOCUMENTS IN DB ==========");
+
+for (final d in docs) {
+  print("DOC = ${d.filename}");
+}
+
+print("====================================");
+print("====================================");
+print("SETTINGS.TOPK = ${settings.topK}");
+print("QUERY = $question");
+print("====================================");
       rawSources = _bridge.search(queryVector, settings.topK);
+      print("========== QUERY TEST ==========");
+print("QUESTION = $question");
+
+for (final s in rawSources) {
+  print("FILE=${s.filename}");
+  print("PAGE=${s.pageNum}");
+  print("SCORE=${s.score}");
+  print("TEXT=${s.content}");
+  print("--------------------------------");
+}
       print("RAW SOURCE COUNT = ${rawSources.length}");
 
 for (final s in rawSources) {
@@ -90,9 +157,55 @@ for (final s in rawSources) {
     // CUTOFF THRESHOLD: Filter out low-similarity noise (< 10% or 0.10)
     const double minSimilarityThreshold = 0.40;
 const double dynamicThreshold = 0.30;
-
 final sources = rawSources;
+print("RAW COUNT = ${rawSources.length}");
+
+for(final s in rawSources){
+  if(s.content.toLowerCase().contains(question.toLowerCase())) {
+   print("KEYWORD MATCH FOUND");
+}
+  print("RAW SCORE = ${s.score}");
+}
+for(final s in rawSources){
+  print(
+    "CHECKING -> score=${s.score} "
+    "contains=${s.content.toLowerCase().contains(question.toLowerCase())}"
+  );
+}
+print("FILTERED COUNT = ${sources.length}");
+
+for(final s in sources){
+  print("FILTERED SCORE = ${s.score}");
+}
+if (sources.isNotEmpty) {
+  print("BEST SCORE = ${sources.first.score}");
+}
+const minScore = 0.10;
+
+print(
+  "BEST SCORE=${sources.first.score} "
+  "MIN REQUIRED=$minScore"
+);
+
+if (sources.isNotEmpty &&
+    sources.first.score < minScore) {
+  print("TOP SCORE TOO LOW = ${sources.first.score}");
+
+  yield "Information not found in the indexed SOPs.";
+
+  onComplete(
+    QueryResult(
+      question: question,
+      answer: "Information not found in the indexed SOPs.",
+      sources: [],
+    ),
+  );
+
+  return;
+}
     if (sources.isEmpty) {
+    print("NO SOURCES FOUND -> RETURNING FALLBACK");
+
   yield "Information not found in the indexed SOPs.";
 
   onComplete(
@@ -196,25 +309,18 @@ for (final s in sources) {
 final systemPrompt = '''
 You are a retrieval-based assistant.
 
-You MUST answer only from the Context section.
+Answer ONLY from Context.
 
-Do NOT use medical knowledge, training data, assumptions, or outside information.
-
-If the Context does not explicitly contain the answer, reply with exactly:
+If the answer is not explicitly present in Context,
+reply exactly:
 
 Information not found in the indexed SOPs.
-
-Do not explain.
-Do not guess.
-Do not summarize from memory.
 
 Context:
 ${contextBuffer.toString()}
 
 Question:
 $question
-
-Provide a short answer in 3-5 bullet points.
 
 Answer:
 ''';
@@ -238,10 +344,11 @@ try {
 print(systemPrompt);
 print("===================================");
   answer = await _modelService.generateResponse(
-    prompt: systemPrompt,
-    temperature: settings.temperature,
-    maxTokens: settings.maxTokens,
-  );
+  prompt: systemPrompt,
+  query: question,
+  temperature: settings.temperature,
+  maxTokens: settings.maxTokens,
+);
 
   print("========== GENERATED ANSWER ==========");
   print("ANSWER LENGTH = ${answer.length}");

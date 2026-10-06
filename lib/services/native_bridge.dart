@@ -158,6 +158,14 @@ class NativeBridge {
     final pOut = calloc<Float>(384);
     try {
       final res = _embedText!(pText, pOut);
+      print("NATIVE EMBED RETURN = $res");
+
+if (res == 1) {
+  print("FIRST 10 NATIVE VALUES:");
+  for (int i = 0; i < 10; i++) {
+    print(pOut[i]);
+  }
+}
       if (res != 1) {
         final vec = List<double>.filled(384, 0.0);
         for (int i = 0; i < text.length; i++) {
@@ -228,11 +236,13 @@ print("_search null = ${_search == null}");
     final pOut = calloc<Uint8>(maxLen);
     try {
       print("CALLING NATIVE SEARCH NOW");
+      print("TOPK PASSED TO NATIVE = $topK");
 final count = _search!(pVec, topK, pOut.cast<Utf8>(), maxLen);
 print("RETURNED FROM NATIVE SEARCH count=$count");
       if (count <= 0) return [];
       final jsonStr = pOut.cast<Utf8>().toDartString();
       final List dynamicList = jsonDecode(jsonStr) as List;
+      print("JSON RESULT COUNT = ${dynamicList.length}");
       return dynamicList.map((e) => ChunkItem.fromJson(e as Map<String, dynamic>)).toList();
     } catch (e) {
       return [];

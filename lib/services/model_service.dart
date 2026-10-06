@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_llama/flutter_llama.dart';
 import '../core/state_analyzer.dart';
 import '../core/decision_engine.dart';
+import '../adaptive/urgency_scorer.dart';
 
 class ModelService {
   bool _isReady = false;
@@ -63,19 +64,25 @@ class ModelService {
     }
   }
   Future<String> generateResponse({
-    
+
   required String prompt,
+  required String query,
   required double temperature,
   required int maxTokens,
-}) async {
+})async {
   if (!_isReady) {
     throw Exception("Model not loaded");
   }
-  final state = StateAnalyzer.analyze(prompt);
+  final state = StateAnalyzer.analyze(query);
+
+final urgencyScore =
+    UrgencyScorer.score(query);
+
+print("URGENCY SCORE = $urgencyScore");
 final config = DecisionEngine.getConfig(state);
 
 debugPrint("========== DYNAMIC ENGINE ==========");
-debugPrint("Query: $prompt");
+debugPrint("Query: $query");
 debugPrint("State: $state");
 debugPrint("TopK: ${config.topK}");
 debugPrint("Chunks: ${config.maxChunks}");
@@ -111,7 +118,7 @@ debugPrint("====================================");
       final params = GenerationParams(
         prompt: "Hello",
         maxTokens: 32,
-        temperature: 0.1,
+        temperature: 0.0,
       );
       debugPrint("Starting generation...");
       final response = await FlutterLlama.instance.generate(params);

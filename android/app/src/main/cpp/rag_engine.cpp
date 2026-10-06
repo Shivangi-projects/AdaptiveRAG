@@ -61,13 +61,37 @@ extern "C"
 
     int32_t edgerag_init(const char *db_path, const char *onnx_path, const char *vocab_path)
     {
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "INIT DB PATH = %s",
+            db_path ? db_path : "NULL");
         if (!g_vector_store)
         {
             g_vector_store = std::make_unique<edgerag::VectorStore>();
         }
-        if (db_path && !g_vector_store->open(db_path))
+        if (db_path)
         {
-            return 0;
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "EDGERAG",
+                "OPENING DB %s",
+                db_path);
+
+            if (!g_vector_store->open(db_path))
+            {
+                __android_log_print(
+                    ANDROID_LOG_ERROR,
+                    "EDGERAG",
+                    "DB OPEN FAILED");
+
+                return 0;
+            }
+
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "EDGERAG",
+                "DB OPEN SUCCESS");
         }
 
         if (!g_embedding)
@@ -76,7 +100,15 @@ extern "C"
         }
         if (onnx_path && vocab_path)
         {
-            g_embedding->init(onnx_path, vocab_path);
+            bool ok = g_embedding->init(
+                onnx_path,
+                vocab_path);
+
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "EDGERAG",
+                "EMBED INIT=%d",
+                ok);
         }
 
         if (!g_llama)
@@ -168,12 +200,21 @@ extern "C"
         {
             return 0;
         }
-
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "SEARCH RECEIVED TOP_K=%d",
+            top_k);
         auto results =
             g_vector_store->search(
                 query_vector,
                 edgerag::EmbeddingEngine::EMBEDDING_DIM,
                 top_k);
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "SEARCH RETURNED %d RESULTS",
+            (int)results.size());
 
         std::ostringstream ss;
         ss << "[";
