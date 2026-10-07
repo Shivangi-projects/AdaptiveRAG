@@ -238,6 +238,22 @@ if (exists) {
 
   await refreshDocuments();
 
+debugPrint("DOC COUNT AFTER IMPORT = ${_documents.length}");
+for (final d in _documents) {
+  debugPrint(
+    "DOC => ${d.filename} chunks=${d.chunkCount}"
+  );
+}
+
+for (final doc in _documents) {
+  debugPrint(
+    "DOC -> ${doc.filename} "
+    "pages=${doc.pageCount}"
+  );
+}
+
+
+
   debugPrint("DOC COUNT AFTER IMPORT = ${_documents.length}");
 }
 

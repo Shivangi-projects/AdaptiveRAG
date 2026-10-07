@@ -344,15 +344,34 @@ namespace edgerag
                     query_vector,
                     chunk_vec,
                     embedding_dim);
+                const char *content =
+                    (const char *)sqlite3_column_text(stmt, 4);
+
+                // QUERY-SPECIFIC DEBUG
                 if (content &&
-                    (strstr(content, "AED") ||
-                     strstr(content, "Defibrillator") ||
-                     strstr(content, "defibrillator")))
+                    (strstr(content, "bleeding") ||
+                     strstr(content, "Bleeding") ||
+                     strstr(content, "blood")))
                 {
                     __android_log_print(
                         ANDROID_LOG_ERROR,
                         "EDGERAG",
-                        "AED CHUNK SCORE=%f text=%.100s",
+                        "BLEEDING CHUNK score=%f text=%.100s",
+                        score,
+                        content);
+                }
+                if (content &&
+                    (strstr(content, "AED") ||
+                     strstr(content, "Defibrillator") ||
+                     strstr(content, "defibrillator") ||
+                     strstr(content, "cardiac") ||
+                     strstr(content, "Cardiac") ||
+                     strstr(content, "arrest")))
+                {
+                    __android_log_print(
+                        ANDROID_LOG_ERROR,
+                        "EDGERAG",
+                        "CPR/AED CHUNK score=%f text=%.150s",
                         score,
                         content);
                 }
@@ -435,7 +454,7 @@ namespace edgerag
             "EDGERAG",
             "BEST SCORE=%f",
             candidates.empty() ? -1.0f : candidates[0].score);
-        const float MIN_SCORE = 0.05f;
+        const float MIN_SCORE = 0.10f;
 
         for (const auto &c : candidates)
         {

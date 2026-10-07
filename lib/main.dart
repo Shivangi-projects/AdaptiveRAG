@@ -89,14 +89,21 @@ print("VOCAB PATH = $vocabPath");
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   final nativeBridge = NativeBridge()..initialize();
+
   final settingsService = SettingsService();
   await settingsService.loadSettings();
 
- final knowledgeService = KnowledgeService();
-final modelService = ModelService();
+  final knowledgeService = KnowledgeService();
+
+  print("ABOUT TO LOAD SAMPLE PACK");
+
+  await knowledgeService.loadSamplePack();
+
+  print("SAMPLE PACK LOAD FINISHED");
+
+  final modelService = ModelService();
 final benchmarkService = BenchmarkService();
 final ragService = RagService(modelService, benchmarkService);
 
