@@ -79,9 +79,9 @@ print("VOCAB PATH = $vocabPath");
 
     // 5. Load sample pack if knowledge base is empty
     await knowledgeService.refreshDocuments();
-    // if (knowledgeService.documents.isEmpty) {
-    //   await knowledgeService.loadSamplePack();
-    // }
+    if (knowledgeService.documents.isEmpty) {
+      await knowledgeService.loadSamplePack();
+    }
   } catch (e) {
     debugPrint('Bootstrap error: $e');
   }

@@ -75,7 +75,7 @@ extern "C"
             __android_log_print(
                 ANDROID_LOG_ERROR,
                 "EDGERAG",
-                "OPENING DB %s",
+                "RAG_ENGINE DB_PATH=%s",
                 db_path);
 
             if (!g_vector_store->open(db_path))
@@ -359,17 +359,66 @@ extern "C"
         }
     }
 
-    int32_t edgerag_import_pack_db(const char *pack_db_path, char *out_error_buf, int32_t max_error_len)
+    int32_t edgerag_import_pack_db(
+        const char *pack_db_path,
+        char *out_error_buf,
+        int32_t max_error_len)
     {
-        if (!g_vector_store || !pack_db_path)
-            return 0;
-        std::string err;
-        bool success = edgerag::KnowledgePackManager::import_pack(*g_vector_store, pack_db_path, "{}", err);
-        if (!success && out_error_buf && max_error_len > 0)
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "IMPORT CALLED");
+
+        if (!g_vector_store)
         {
-            std::strncpy(out_error_buf, err.c_str(), max_error_len - 1);
-            out_error_buf[max_error_len - 1] = '\0';
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "EDGERAG",
+                "IMPORT FAILED: g_vector_store NULL");
+
+            return 0;
         }
+
+        if (!pack_db_path)
+        {
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "EDGERAG",
+                "IMPORT FAILED: pack_db_path NULL");
+
+            return 0;
+        }
+
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "PACK PATH=%s",
+            pack_db_path);
+
+        std::string err;
+
+        bool success =
+            edgerag::KnowledgePackManager::import_pack(
+                *g_vector_store,
+                pack_db_path,
+                "{}",
+                err);
+
+        __android_log_print(
+            ANDROID_LOG_ERROR,
+            "EDGERAG",
+            "IMPORT SUCCESS=%d",
+            success);
+
+        if (!err.empty())
+        {
+            __android_log_print(
+                ANDROID_LOG_ERROR,
+                "EDGERAG",
+                "IMPORT ERR=%s",
+                err.c_str());
+        }
+
         return success ? 1 : 0;
     }
 

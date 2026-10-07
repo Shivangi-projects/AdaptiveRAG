@@ -187,17 +187,22 @@ if (chunkText.toLowerCase().contains("burn")) {
   }
 
   // Load sample Emergency Demo Pack from assets safely
-  Future<bool> loadSamplePack() async {
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
+ Future<bool> loadSamplePack() async {
+  try {
+    debugPrint("LOAD SAMPLE PACK STARTED");
+
+    final appDir = await getApplicationDocumentsDirectory();
       final sampleDir = Directory('${appDir.path}/packs');
       if (!await sampleDir.exists()) {
         await sampleDir.create(recursive: true);
       }
 
       final targetDbPath = '${sampleDir.path}/emergency_demo_knowledge.db';
+      debugPrint("TARGET DB = $targetDbPath");
+debugPrint(
+  "DB EXISTS = ${await File(targetDbPath).exists()}");
       final packFile = '${sampleDir.path}/emergency_demo.edgepack';
-
+      debugPrint("TARGET DB = $targetDbPath");
       // Check if emergency_demo.edgepack exists in assets
       try {
         final data = await rootBundle.load('assets/sample/emergency_demo.edgepack');
@@ -218,17 +223,23 @@ if (chunkText.toLowerCase().contains("burn")) {
       } catch (e) {
         debugPrint('Sample pack extraction bypass: $e');
       }
+      debugPrint("TARGET DB = $targetDbPath");
+debugPrint("DB EXISTS = ${await File(targetDbPath).exists()}");
+      final exists = await File(targetDbPath).exists();
 
-      if (await File(targetDbPath).exists()) {
-        _bridge.importPackDb(targetDbPath);
-        await refreshDocuments();
+debugPrint("DB EXISTS = $exists");
 
-print("AFTER IMPORT:");
-print("DOC COUNT = ${_documents.length}");
+if (exists) {
+  debugPrint("CALLING IMPORT PACK DB");
 
-// final stats = _bridge.getDbStats();
-// print("DB STATS AFTER IMPORT = $stats");
-      }
+  final ok = _bridge.importPackDb(targetDbPath);
+
+  debugPrint("IMPORT RESULT = $ok");
+
+  await refreshDocuments();
+
+  debugPrint("DOC COUNT AFTER IMPORT = ${_documents.length}");
+}
 
       _activePack = KnowledgePack(
         packId: 'emergency_demo_v1',
