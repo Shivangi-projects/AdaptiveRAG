@@ -1,12 +1,7 @@
+
 class UrgencyScorer {
-
   static double score(String query) {
-
-    print("URGENCY INPUT = $query");
-
-  final q = query.toLowerCase();
-
-    double score = 0.0;
+    final q = query.toLowerCase();
 
     const criticalWords = [
       "not breathing",
@@ -22,13 +17,11 @@ class UrgencyScorer {
       "shock",
       "seizure",
       "stroke",
-      "heart attack",
       "cpr",
-      "severe bleeding",
+      "bleeding",
     ];
 
     const stressedWords = [
-      "burn",
       "fracture",
       "pain",
       "panic",
@@ -36,24 +29,21 @@ class UrgencyScorer {
       "fainted",
       "heat stroke",
       "heat exhaustion",
+      "injury",
     ];
 
-    for(final word in criticalWords) {
-      if(q.contains(word)) {
-        score += 0.4;
+    for (final word in criticalWords) {
+      if (q.contains(word)) {
+        return 0.8;
       }
     }
 
-    for(final word in stressedWords) {
-      if(q.contains(word)) {
-        score += 0.15;
+    for (final word in stressedWords) {
+      if (q.contains(word)) {
+        return 0.4;
       }
     }
 
-    if(score > 1.0) {
-      score = 1.0;
-    }
-    print("URGENCY RESULT = $score");
-    return score;
+    return 0.0;
   }
 }

@@ -454,7 +454,7 @@ namespace edgerag
             "EDGERAG",
             "BEST SCORE=%f",
             candidates.empty() ? -1.0f : candidates[0].score);
-        const float MIN_SCORE = 0.10f;
+        const float MIN_SCORE = 0.05f;
 
         for (const auto &c : candidates)
         {

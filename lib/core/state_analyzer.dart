@@ -11,6 +11,7 @@ class StateAnalyzer {
   "heart attack",
   "severe bleeding",
   "medical emergency",
+  "bleeding",
   "cpr",
 
   "poisoning",

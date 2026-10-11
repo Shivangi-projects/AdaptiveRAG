@@ -20,7 +20,7 @@ class AppSettings {
     this.ggufModelName = 'No Model Selected',
     this.cpuThreads = 4,
     this.contextLength = 1024,
-    this.maxTokens = 48,
+    this.maxTokens = 64,
     this.temperature = 0.0,
     this.topK = 5,
     this.chunkSize = 200,

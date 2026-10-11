@@ -27,7 +27,7 @@ class SettingsService {
         contextLength: prefs.getInt(_keyContextLength) ?? 1024,
         maxTokens: prefs.getInt(_keyMaxTokens) ?? 64,
         temperature: prefs.getDouble(_keyTemperature) ?? 0.7,
-        topK: (prefs.getInt(_keyTopK) ?? 3).clamp(1, 5),
+        topK: (prefs.getInt(_keyTopK) ?? 3).clamp(1, 10),
         chunkSize: prefs.getInt(_keyChunkSize) ?? 350,
         chunkOverlap: prefs.getInt(_keyChunkOverlap) ?? 35,
         isDemoMode: prefs.getBool(_keyIsDemoMode) ?? false,

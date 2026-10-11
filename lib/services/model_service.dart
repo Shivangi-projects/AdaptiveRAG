@@ -33,11 +33,12 @@ class ModelService {
     debugPrint("Context: $contextLength");
     debugPrint("Threads: $cpuThreads");
 
-    final config = LlamaConfig(
-      modelPath: modelPath,
-      nThreads: cpuThreads,
-      nGpuLayers: 0,
-    );
+   final config = LlamaConfig(
+  modelPath: modelPath,
+  nThreads: cpuThreads,
+  nGpuLayers: 0,
+  contextSize: contextLength,
+);
 
     await FlutterLlama.instance.loadModel(config);
 
@@ -105,7 +106,22 @@ debugPrint("====================================");
   final response =
       await FlutterLlama.instance.generate(params);
 
-  return response.text;
+  var answer = response.text.trim();
+
+final unwantedMarkers = [
+  '\nContext:',
+  '\nQuestion:',
+  '\nIMPORTANT:',
+];
+
+for (final marker in unwantedMarkers) {
+  final index = answer.indexOf(marker);
+  if (index != -1) {
+    answer = answer.substring(0, index).trim();
+  }
+}
+
+return answer;
 }
 
   /// Runs test inference

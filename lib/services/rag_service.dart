@@ -5,6 +5,9 @@ import '../models/app_settings.dart';
 import 'native_bridge.dart';
 import 'model_service.dart';
 import 'benchmark_service.dart';
+import '../adaptive/urgency_scorer.dart';
+import '../adaptive/fidelity_controller.dart';
+import '../adaptive/adaptive_compressor.dart';
 
 class RagService {
   final NativeBridge _bridge = NativeBridge();
@@ -18,6 +21,7 @@ class RagService {
   void stopGeneration() {
     _isCancelled = true;
   }
+  
 
   Stream<String> executeQueryStream({
     required String question,
@@ -26,6 +30,20 @@ class RagService {
   }) async* {
     _isCancelled = false;
     final totalSw = Stopwatch()..start();
+    final urgencyScore = UrgencyScorer.score(question);
+final fidelityConfig = FidelityController.getConfig(urgencyScore);
+
+final adaptiveTopK = fidelityConfig.topK > settings.topK
+    ? fidelityConfig.topK
+    : settings.topK;
+
+print("========== ADAPTIVE RETRIEVAL ==========");
+print("Question: $question");
+print("Urgency score: $urgencyScore");
+print("Configured TopK: ${settings.topK}");
+print("Adaptive TopK: $adaptiveTopK");
+print("Compression level: ${fidelityConfig.compressionLevel}");
+print("========================================");
 
     // 1. Embed query locally with safety guard
     final embedSw = Stopwatch()..start();
@@ -118,7 +136,7 @@ print("====================================");
 print("SETTINGS.TOPK = ${settings.topK}");
 print("QUERY = $question");
 print("====================================");
-      rawSources = _bridge.search(queryVector, settings.topK);
+      rawSources = _bridge.search(queryVector, adaptiveTopK);
       print("========== QUERY TEST ==========");
 print("QUESTION = $question");
 
@@ -155,75 +173,62 @@ for (final s in rawSources) {
     }
 
     // CUTOFF THRESHOLD: Filter out low-similarity noise (< 10% or 0.10)
-    const double minSimilarityThreshold = 0.40;
-const double dynamicThreshold = 0.30;
-final sources = rawSources;
-print("RAW COUNT = ${rawSources.length}");
+    
+    final sources = rawSources;
 
-for(final s in rawSources){
-  if(s.content.toLowerCase().contains(question.toLowerCase())) {
-   print("KEYWORD MATCH FOUND");
-}
-  print("RAW SCORE = ${s.score}");
-}
-for(final s in rawSources){
-  print(
-    "CHECKING -> score=${s.score} "
-    "contains=${s.content.toLowerCase().contains(question.toLowerCase())}"
-  );
-}
-print("FILTERED COUNT = ${sources.length}");
+    print("RAW COUNT = ${rawSources.length}");
 
-for(final s in sources){
-  print("FILTERED SCORE = ${s.score}");
-}
-if (sources.isNotEmpty) {
-  print("BEST SCORE = ${sources.first.score}");
-}
-const minScore = 0.10;
-
-print(
-  "BEST SCORE=${sources.first.score} "
-  "MIN REQUIRED=$minScore"
-);
-
-if (sources.isNotEmpty &&
-    sources.first.score < minScore) {
-  print("TOP SCORE TOO LOW = ${sources.first.score}");
-
-  yield "Information not found in the indexed SOPs.";
-
-  onComplete(
-    QueryResult(
-      question: question,
-      answer: "Information not found in the indexed SOPs.",
-      sources: [],
-    ),
-  );
-
-  return;
-}
     if (sources.isEmpty) {
-    print("NO SOURCES FOUND -> RETURNING FALLBACK");
+      print("NO SOURCES FOUND -> RETURNING FALLBACK");
 
-  yield "Information not found in the indexed SOPs.";
+      const message = "Information not found in the indexed SOPs.";
 
-  onComplete(
-    QueryResult(
-      question: question,
-      answer: "Information not found in the indexed SOPs.",
-      sources: [],
-    ),
-  );
+      yield message;
 
-  return;
-}
-    print("FILTERED SOURCE COUNT = ${sources.length}");
+      final result = QueryResult(
+        question: question,
+        answer: message,
+        sources: [],
+        totalTimeMs: totalSw.elapsedMilliseconds,
+      );
 
-for (final s in sources) {
-  print(
-      "FILTERED -> FILE=${s.filename} PAGE=${s.pageNum} SCORE=${s.score}");
-}
+      _benchmarkService.recordQuery(result);
+      onComplete(result);
+      return;
+    }
+
+    print("BEST SCORE = ${sources.first.score}");
+
+    const minScore = 0.05;
+
+    if (sources.first.score < minScore) {
+      print("TOP SCORE TOO LOW = ${sources.first.score}");
+
+      const message = "Information not found in the indexed SOPs.";
+
+      yield message;
+
+      final result = QueryResult(
+        question: question,
+        answer: message,
+        sources: [],
+        totalTimeMs: totalSw.elapsedMilliseconds,
+      );
+
+      _benchmarkService.recordQuery(result);
+      onComplete(result);
+      return;
+    }
+
+    print("RETRIEVED SOURCE COUNT = ${sources.length}");
+
+    for (final s in sources) {
+      print(
+        "SOURCE -> FILE=${s.filename} "
+        "PAGE=${s.pageNum} SCORE=${s.score}",
+      );
+    }
+
     
     searchSw.stop();
 
@@ -277,35 +282,77 @@ print("Error = ${_modelService.errorMessage}");
       return;
     }
 
-    // 4. Build grounded prompt
-    final contextBuffer = StringBuffer();
-final seen = <String>{};
+     // 4. Build grounded prompt
+    final seen = <String>{};
 
-final dedupedSources = sources.where((s) {
-  final key = "${s.docId}_${s.chunkIndex}";
-  if (seen.contains(key)) {
-    return false;
-  }
+    final dedupedSources = sources.where((s) {
+      final key = "${s.docId}_${s.chunkIndex}";
 
-  seen.add(key);
-  return true;
-}).toList();
-for (final source in dedupedSources) {
+      if (seen.contains(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    }).toList();
+
+    
+final queryTerms = question
+    .toLowerCase()
+    .split(RegExp(r'[^a-z0-9]+'))
+    .where((word) => word.length > 2)
+    .toSet();
+
+final rerankedSources = [...dedupedSources];
+
+int lexicalOverlap(String content) {
+  final contentTerms = content
+      .toLowerCase()
+      .split(RegExp(r'[^a-z0-9]+'))
+      .where((word) => word.length > 2)
+      .toSet();
+
+  return queryTerms.intersection(contentTerms).length;
+}
+
+rerankedSources.sort((a, b) {
+  final overlapA = lexicalOverlap(a.content);
+  final overlapB = lexicalOverlap(b.content);
+
+  return overlapB.compareTo(overlapA);
+});
+
+print("========== LEXICAL RERANKING ==========");
+for (final source in rerankedSources.take(5)) {
+  print(
+    "FILE: ${source.filename} | "
+    "PAGE: ${source.pageNum} | "
+    "OVERLAP: ${lexicalOverlap(source.content)} | "
+    "VECTOR SCORE: ${source.score}",
+  );
+}
+print("=======================================");
+
+final contextBuffer = StringBuffer();
+
+
+for (final source in rerankedSources.take(3)) {
   contextBuffer.writeln(source.content);
   contextBuffer.writeln();
 }
-print("========== CONTEXT BUFFER ==========");
-print(contextBuffer.toString());
-print("====================================");
-    print("========== RETRIEVED CONTEXT ==========");
-    print("============== SOURCES ==============");
-for (final s in sources) {
-  print(
-      "FILE=${s.filename} PAGE=${s.pageNum} SCORE=${s.score}");
-      print("=====================================");
-  print(s.content);
-  print("--------------------------------");
-}
+
+    final retrievedContext = contextBuffer.toString();
+
+    final finalContext = AdaptiveCompressor.compress(
+      retrievedContext,
+      urgencyScore,
+    );
+
+    print("========== ADAPTIVE CONTEXT ==========");
+    print("Urgency score: $urgencyScore");
+    print("Retrieved chunks: ${dedupedSources.length}");
+    print("Context characters: ${finalContext.length}");
+    print("======================================");
 final systemPrompt = '''
 You are a retrieval-based assistant.
 
@@ -317,7 +364,7 @@ reply exactly:
 Information not found in the indexed SOPs.
 
 Context:
-${contextBuffer.toString()}
+$finalContext
 
 Question:
 $question
